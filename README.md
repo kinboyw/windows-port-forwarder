@@ -1,5 +1,5 @@
 # windows-port-forwarder
-## ⚡ PortForwarder.ps1: A Simple PowerShell Port Forwarding Tool for WSL2 ⚡
+## ⚡ A Simple PowerShell Port Forwarding Tool for WSL2 ⚡
 
 This PowerShell script, `PortForwarder.ps1`, allows you to easily create, manage, and delete port forwarding rules within your Windows environment for accessing services running inside your WSL2 distribution. It leverages the `netsh` command to establish port mappings and provides a user-friendly interface for convenient interactions. 🎉
 
