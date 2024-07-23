@@ -146,16 +146,13 @@ function Show-Notification {
         [int]
         $ToastExpireSecond = 60,
         [string]
-        $image = 'G:\pf\laugh.ico'
+        $image = 'C:\laugh.ico'
     )
 
     if (!(Test-Path $image)) {
         # 文件不存在，将 Base64 图片写入文件
         $imageData = [System.Convert]::FromBase64String($laugh_ico_base64)
         [System.IO.File]::WriteAllBytes($image, $imageData)
-        Write-Host "Icon file created successfully: $image"
-    }else{
-        Write-Host "Icon file exists: $image"
     }
 
     $ToastImageAndText02 = [Windows.UI.Notifications.ToastTemplateType, Windows.UI.Notifications, ContentType = WindowsRuntime]::ToastImageAndText02
