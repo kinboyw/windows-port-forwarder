@@ -18,8 +18,9 @@ This PowerShell script, `PortForwarder.ps1`, allows you to easily create, manage
 
 ### Requirements
 
-- Windows 10 (or later) with WSL2 enabled. 👍
 - PowerShell installed. 💻
+- PowerShell execution policy set to `RemoteSigned` or `Unrestricted` or `Bypass`. 🔐
+- WSL2 distribution installed if you want to forward local port to WSL2. 🐧
 
 ### Installation
 
