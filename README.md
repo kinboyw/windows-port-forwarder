@@ -11,6 +11,11 @@ This PowerShell script, `PortForwarder.ps1`, allows you to easily create, manage
 - **Retry Port Mapping:** Remap a selected port forwarding rule by deleting and re-adding it, providing the opportunity to update forwarding settings. 🔄
 - **User-Friendly Interface:**  Interactive menus guide you through the process, requiring minimal input from the user. 🧭
 
+### ScreenShots
+![](https://img.kinboy.wang/file/e4f6974c80d7eb3013c50.png)
+
+![](https://img.kinboy.wang/file/bcaafeaa975f9c6151bf3.png)
+
 ### Requirements
 
 - Windows 10 (or later) with WSL2 enabled. 👍
