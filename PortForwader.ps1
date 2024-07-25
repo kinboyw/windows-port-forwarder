@@ -17,7 +17,6 @@ function Show-Notification {
     )
 
     if (!(Test-Path $image)) {
-        # 鏂囦欢涓嶅瓨鍦紝灏?Base64 鍥剧墖鍐欏叆鏂囦欢
         $imageData = [System.Convert]::FromBase64String($laugh_ico_base64)
         [System.IO.File]::WriteAllBytes($image, $imageData)
     }
