@@ -17,7 +17,7 @@ function Show-Notification {
     )
 
     if (!(Test-Path $image)) {
-        # 文件不存在，将 Base64 图片写入文件
+        # 鏂囦欢涓嶅瓨鍦紝灏?Base64 鍥剧墖鍐欏叆鏂囦欢
         $imageData = [System.Convert]::FromBase64String($laugh_ico_base64)
         [System.IO.File]::WriteAllBytes($image, $imageData)
     }
@@ -53,7 +53,18 @@ function ShowAsciiArt {
 "@
 }
 function AddPortMapping {
-    $wslIP = ((wsl.exe -- bash -c "ifconfig eth0 | grep 'inet ' | awk '{print $2}'").Trim() -split " ")[1]
+    # 获取 WSL2 IP，如果 WSL2 未安装，则不报错，默认使用 0.0.0.0
+    $wslIP = "0.0.0.0" 
+    try {
+        $wslIP = (wsl.exe -- bash -c "ifconfig eth0 | grep 'inet ' | awk '{print $2}'").Trim() -split " "
+        if ($wslIP.Count -gt 1) {
+            $wslIP = $wslIP[1]
+        }
+        Write-Host "WSL2 已安装，使用 IP: $wslIP"
+    } catch {
+        Write-Host "WSL2 未安装，将使用默认 IP: $wslIP"
+    }
+
     $localPort = Read-Host "Please input local listening port"
     $localIP = Read-Host "Please input local listening IP Address (default 0.0.0.0)"
 
@@ -180,7 +191,24 @@ function ShowMainMenu {
 
     ShowMainMenu
 }
-ShowAsciiArt
-ShowMainMenu
+
+function CheckExecutionPolicy {
+    $currentPolicy = Get-ExecutionPolicy
+
+    if ($currentPolicy -ge "RemoteSigned") {
+        return $true
+    } else {
+        return $false
+    }
+}
+
+if (CheckExecutionPolicy) {
+    ShowAsciiArt
+    ShowMainMenu
+} else {
+    Write-Host "当前执行策略不允许PowerShell执行本地脚本，请使用以下命令开启："
+    Write-Host " Set-ExecutionPolicy -Scope LocalMachine RemoteSigned"
+}
+
 
 
