@@ -52,16 +52,16 @@ function ShowAsciiArt {
 "@
 }
 function AddPortMapping {
-    # 获取 WSL2 IP，如果 WSL2 未安装，则不报错，默认使用 0.0.0.0
+    # aquire WSL2 IP，if WSL2 not installed，it will take default target IP 0.0.0.0
     $wslIP = "0.0.0.0" 
     try {
         $wslIP = (wsl.exe -- bash -c "ifconfig eth0 | grep 'inet ' | awk '{print $2}'").Trim() -split " "
         if ($wslIP.Count -gt 1) {
             $wslIP = $wslIP[1]
         }
-        Write-Host "WSL2 已安装，使用 IP: $wslIP"
+        Write-Host "WSL2 already installed, IP: $wslIP"
     } catch {
-        Write-Host "WSL2 未安装，将使用默认 IP: $wslIP"
+        Write-Host "WSL2 not installed yet, will take default IP: $wslIP"
     }
 
     $localPort = Read-Host "Please input local listening port"
@@ -205,7 +205,7 @@ if (CheckExecutionPolicy) {
     ShowAsciiArt
     ShowMainMenu
 } else {
-    Write-Host "当前执行策略不允许PowerShell执行本地脚本，请使用以下命令开启："
+    Write-Host "current execution policy is not allowed to run PowerShell scripts on local machine，please run following command in a PowerShell console launched as Administrator："
     Write-Host " Set-ExecutionPolicy -Scope LocalMachine RemoteSigned"
 }
 
