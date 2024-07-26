@@ -52,7 +52,7 @@ function ShowAsciiArt {
 "@
 }
 function AddPortMapping {
-    # aquire WSL2 IP，if WSL2 not installed，it will take default target IP 0.0.0.0
+    # aquire WSL2 IP, if WSL2 not installed,it will take default target IP 0.0.0.0
     $wslIP = "0.0.0.0" 
     try {
         $wslIP = (wsl.exe -- bash -c "ifconfig eth0 | grep 'inet ' | awk '{print $2}'").Trim() -split " "
@@ -205,9 +205,6 @@ if (CheckExecutionPolicy) {
     ShowAsciiArt
     ShowMainMenu
 } else {
-    Write-Host "current execution policy is not allowed to run PowerShell scripts on local machine，please run following command in a PowerShell console launched as Administrator："
-    Write-Host " Set-ExecutionPolicy -Scope LocalMachine RemoteSigned"
+    Write-Host "current execution policy is not allowed to run PowerShell scripts on local machine, please run following command in a PowerShell console launched as Administrator: "
+    Write-Host "Set-ExecutionPolicy -Scope LocalMachine RemoteSigned"
 }
-
-
-
