@@ -39,6 +39,7 @@ function Show-Notification {
 }
 
 $portMappings = New-Object System.Collections.ArrayList
+$portMappingsFile = "$PSScriptRoot\port_mappings.txt"
 function ShowAsciiArt {
     Write-Host @"
 
@@ -51,6 +52,29 @@ function ShowAsciiArt {
 								
 "@
 }
+
+function Write-JsonWithoutBOM {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$JsonContent,  # JSON content
+
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath       # JSON file path
+    )
+
+    try {
+        # Write to file using StreamWriter, ensuring UTF-8 encoding (no BOM)
+        $streamWriter = [System.IO.StreamWriter]::new($FilePath, $false, [System.Text.Encoding]::UTF8)
+        $streamWriter.Write($JsonContent)
+        $streamWriter.Close()
+        #Write-Host "JSON content has been written successfully $FilePath"
+    }
+    catch {
+        Write-Error "Failed to write to file: $_"
+    }
+}
+
+
 function AddPortMapping {
     # aquire WSL2 IP, if WSL2 not installed,it will take default target IP 0.0.0.0
     $wslIP = "0.0.0.0" 
@@ -80,6 +104,8 @@ function AddPortMapping {
         $localIP = "0.0.0.0"
     }
 
+    $annotation = Read-Host "Please input annotation for this rule"
+
     $result = "Mapping local port $localPort($localIP) to $remotePort($RemoteIP)"
     Write-Host $result
     netsh interface portproxy add v4tov4 listenport=$localPort listenaddress=$localIP connectport=$remotePort connectaddress=$remoteIP tcp
@@ -88,7 +114,11 @@ function AddPortMapping {
     $rule | Add-Member -MemberType NoteProperty -Name "LocalPort" -Value $localPort
     $rule | Add-Member -MemberType NoteProperty -Name "RemotePort" -Value $remotePort
     $rule | Add-Member -MemberType NoteProperty -Name "RemoteIP" -Value $remoteIP
-    $portMappings.Add($rule)
+    $rule | Add-Member -MemberType NoteProperty -Name "Annotation" -Value $annotation
+    $global:portMappings.Add($rule)
+
+    # Save port mappings to file
+    flushPortMappingsToLocalFile
 
     $title = "Port forward create success"
     Write-Host $title
@@ -100,12 +130,15 @@ function RemovePortMapping {
     ShowPortMappings
 
     $index = Read-Host "Input sequence number to delete"
-    $rule = $portMappings[$index]
+    $rule = $global:portMappings[$index]
     $result = "Deleting map local port $($rule.LocalPort)($($rule.LocalIP)) to $($rule.RemotePort)($($rule.RemoteIP))"
     Write-Host $result
     netsh interface portproxy delete v4tov4 listenaddress=$($rule.LocalIP) listenport=$($rule.LocalPort)
 
-    $portMappings.Remove($rule)
+    $global:portMappings.Remove($rule)
+
+    # Save port mappings to file
+    flushPortMappingsToLocalFile
 
     $title = "Delete success"
     Write-Host $title
@@ -117,8 +150,8 @@ function RetryPortMapping {
     ShowPortMappings
 
     $index = Read-Host "Input sequence number to remapping"
-    $rule = $portMappings[$index]
-    Write-Host $portMappings.Count
+    $rule = $global:portMappings[$index]
+    Write-Host $global:portMappings.Count
 
     $result = "Remapping map local port $($rule.LocalPort)($($rule.LocalIP)) to $($rule.RemotePort)($($rule.RemoteIP))"
     Write-Host $result
@@ -126,17 +159,24 @@ function RetryPortMapping {
 
     netsh interface portproxy add v4tov4 listenport=$($rule.LocalPort) listenaddress=$($rule.LocalIP) connectport=$($rule.RemotePort) connectaddress=$($rule.RemoteIP) tcp
 
+    # Save port mappings to file
+    flushPortMappingsToLocalFile
+
     $title = "Remapping success"
     Write-Host $title
     ShowPortMappings
     Show-Notification -ToastTitle "$title" -ToastText "$result"
 }
 
-function ShowPortMappings1 {
-    if ($portMappings) {
-        for ($i = 0; $i -lt $portMappings.Count; $i++) {
-            $rule = $portMappings[$i]
-            Write-Host "$i. $($rule.LocalPort) ($($rule.LocalIP)) -> $($rule.RemotePort) ($($rule.RemoteIP))"
+function PrintPortMappings {
+    if ($global:portMappings) {
+        for ($i = 0; $i -lt $global:portMappings.Count; $i++) {
+            $rule = $global:portMappings[$i]
+            $line = "$i. $($rule.LocalPort) ($($rule.LocalIP)) -> $($rule.RemotePort) ($($rule.RemoteIP))"
+            if ($rule.Annotation -ne "" -and $null -ne $rule.Annotation) {
+                $line += " - [$($rule.Annotation)]"
+            }
+            Write-Host $line
         }
     }
     else {
@@ -146,27 +186,52 @@ function ShowPortMappings1 {
     }
 }
 
-function ShowPortMappings {
-    Clear-Host
-    Write-Host "Current port mappings:"
+function loadPortMappingsFromNetsh {
     $output = Invoke-Expression "netsh interface portproxy show v4tov4"
     $lines = $output -split "`r`n" | Select-Object -Skip 5 | Select-Object -SkipLast 1
-    $portMappings.Clear()
+    $localMappings = New-Object System.Collections.ArrayList
     foreach ($line in $lines) {
         $columns = $line -split "\s+"
         $localIp = $columns[0]
         $localPort = $columns[1]
         $remoteIp = $columns[2]
         $remotePort = $columns[3]
+        $annotation = ""
+
+        foreach ($item in $global:portMappings){
+            if ($item -and $item.LocalIP -eq $localIp -and $item.LocalPort -eq $localPort -and $item.RemotePort -eq $remotePort -and $item.RemoteIP -eq $remoteIp -and $item.Annotation -ne "") {
+                $annotation = $item.Annotation
+            }
+        }
 
         $rule = New-Object -TypeName PSObject
         $rule | Add-Member -MemberType NoteProperty -Name "LocalIP" -Value $localIp
         $rule | Add-Member -MemberType NoteProperty -Name "LocalPort" -Value $localPort
         $rule | Add-Member -MemberType NoteProperty -Name "RemotePort" -Value $remotePort
         $rule | Add-Member -MemberType NoteProperty -Name "RemoteIP" -Value $remoteIP
-        $portMappings.Add($rule) | Out-Null
+        if ($annotation -ne "" -and $null -ne $annotation) {
+            $rule | Add-Member -MemberType NoteProperty -Name "Annotation" -Value $annotation
+        }
+
+        $localMappings.Add($rule) | Out-Null
     }
-    ShowPortMappings1
+
+    $global:portMappings = $localMappings 
+}
+
+function flushPortMappingsToLocalFile {
+    # Save port mappings to file
+    Write-Host "portMappings: $global:portMappings"
+    $jsonContent = $global:portMappings | ConvertTo-Json
+    Write-JsonWithoutBOM -JsonContent $jsonContent -FilePath $global:portMappingsFile 
+}
+
+function ShowPortMappings {
+    Clear-Host
+    Write-Host "Current port mappings:"
+    loadPortMappingsFromNetsh
+    flushPortMappingsToLocalFile
+    PrintPortMappings
 }
 
 function ShowMainMenu {
@@ -201,7 +266,21 @@ function CheckExecutionPolicy {
     }
 }
 
+function loadPortMappingsFromLocalFile {
+    if (Test-Path $global:portMappingsFile) {
+        #Write-Host "Loading port mappings from file..."
+        $rawJson = Get-Content $global:portMappingsFile -Encoding UTF8
+        $localPortMappings = $rawJson | ConvertFrom-Json
+        foreach ($mapping in $localPortMappings) {
+            # [void]是为了隐藏Add方法返回的值，避免在控制台中打印索引的默认行为
+            [void]$global:portMappings.Add($mapping)
+        }
+    }
+}
+
 if (CheckExecutionPolicy) {
+    loadPortMappingsFromLocalFile
+    loadPortMappingsFromNetsh
     ShowAsciiArt
     ShowMainMenu
 } else {
